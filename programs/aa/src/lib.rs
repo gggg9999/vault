@@ -33,7 +33,6 @@ pub mod aa {
     pub fn initialize(ctx: Context<Initialize>, owner: Pubkey) -> Result<()> {
         let config = &mut ctx.accounts.config;
         config.assets = Vec::new();
-        config.bumps = Vec::new();
         config.owner = owner;
         msg!("initialize {}", config.owner);
         Ok(())
@@ -55,14 +54,8 @@ pub mod aa {
             !config.assets.contains(&mint_account_key),
             ErrorCode::AssetExisted
         );
-
-        let (config_pda, bump) = Pubkey::find_program_address(&[mint_account_key.as_ref()], &ctx.program_id);
-        require!(
-            config_pda == ctx.accounts.vault_account.key(),
-            ErrorCode::InvalidAmount
-        );
+        
         ctx.accounts.config.assets.push(mint_account_key);
-        ctx.accounts.config.bumps.push(bump);
         Ok(())
     }
 
@@ -97,7 +90,7 @@ pub mod aa {
         let config = &ctx.accounts.config;
         let pos = config.assets.iter().position(|elm| elm == &ctx.accounts.mint_account.key());
         require!(pos.is_some(), ErrorCode::AssetNotFound);
-        let bump = config.bumps[pos.unwrap()];
+        let bump = ctx.bumps.vault_account;
         let user: &mut Account<'_, UserInfo> = &mut ctx.accounts.user;
         msg!("withdraw user balance {} {}", user.balance, ctx.accounts.vault_account.amount);
         require_gte!(user.balance, amount, ErrorCode::InsufficientFund);
@@ -127,7 +120,6 @@ pub mod aa {
 pub struct Config {
     owner: Pubkey,
     assets: Vec<Pubkey>,
-    bumps: Vec<u8>,
 }
 
 #[account]
@@ -143,7 +135,6 @@ pub struct UserInfo {
 // }
 
 #[derive(Accounts)]
-#[instruction(bump: u8)]
 pub struct Initialize<'info> {
     #[account(
         init,
@@ -223,7 +214,13 @@ pub struct Deposit<'info> {
     pub payer: Signer<'info>,
     #[account(mut)]
     pub user_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
+    #[account(
+        mut, 
+        seeds = [mint_account.key().as_ref()],
+        bump,
+        token::mint = mint_account,
+        token::authority = vault_account,
+    )]
     pub vault_account: Account<'info, TokenAccount>,
     pub mint_account: Account<'info, Mint>,
     pub token_program: Program<'info, Token>,
@@ -243,7 +240,10 @@ pub struct Withdraw<'info> {
     pub user: Account<'info, UserInfo>,
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(mut, 
+    #[account(
+        mut, 
+        seeds = [mint_account.key().as_ref()],
+        bump,
         token::mint = mint_account,
         token::authority = vault_account,
     )]
