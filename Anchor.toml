@@ -1,0 +1,18 @@
+[features]
+seeds = false
+
+[programs.localnet]
+aa = "AtjBMK1fjoXw3sBiMBJkyStuPT1S87DU1mMvmGanN3hq"
+
+[programs.devnet]
+aa = "AtjBMK1fjoXw3sBiMBJkyStuPT1S87DU1mMvmGanN3hq"
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id3.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
